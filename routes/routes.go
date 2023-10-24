@@ -14,4 +14,6 @@ func Setup(app *fiber.App) {
 	app.Get("/films/:id", controllers.FilmDetails)
 
 	app.Post("/customers", controllers.CreateCustomer)
+
+	app.Post("/payments", controllers.MakePayment)
 }

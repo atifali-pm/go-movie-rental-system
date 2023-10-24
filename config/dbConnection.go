@@ -46,5 +46,9 @@ func AutoMigrate(connection *gorm.DB) {
 		&models.City{},
 		&models.Address{},
 		&models.Customer{},
+		&models.Rental{},
+		&models.Staff{},
+		&models.Store{},
+		&models.Payment{},
 	)
 }
