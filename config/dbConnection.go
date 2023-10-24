@@ -36,9 +36,15 @@ func Connect() {
 func AutoMigrate(connection *gorm.DB) {
 	connection.Debug().AutoMigrate(
 		&models.Category{},
-		&models.FilmCategory{},
 		&models.Film{},
 		&models.Inventory{},
 		&models.Language{},
+		&models.Actor{},
+		&models.FilmActor{},
+		&models.FilmCategory{},
+		&models.Country{},
+		&models.City{},
+		&models.Address{},
+		&models.Customer{},
 	)
 }

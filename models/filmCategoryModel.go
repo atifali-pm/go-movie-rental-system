@@ -1,11 +1,11 @@
 package models
 
-import "time"
+import (
+	"gorm.io/gorm"
+)
 
 type FilmCategory struct {
-	Id         int       `json:"id" gorm:"type:INT(10) UNSIGNED NOT NULL AUTO_INCREMENT;primaryKey"`
-	FilmId     int       `json:"film_id"`
-	CategoryId int       `json:"category_id"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	gorm.Model     // This includes ID, CreatedAt, and UpdatedAt fields
+	FilmId     int `json:"film_id"`
+	CategoryId int `json:"category_id"`
 }
