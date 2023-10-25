@@ -185,6 +185,41 @@ func FilmsList(c *fiber.Ctx) error {
 	// Check if a query parameter for matching films is provided
 	query := c.Query("q")
 	if query != "" {
+		// // Subquery for actors
+		// actorQuery := db.DB.Model(&films).
+		//     Joins("JOIN film_actors ON films.id = film_actors.film_id").
+		//     Joins("JOIN actors ON film_actors.actor_id = actors.id").
+		//     Where("actors.name LIKE ?", "%"+query+"%").
+		//     Select("films.id")
+
+		// // Subquery for categories
+		// categoryQuery := db.DB.Model(&Film{}).
+		//     Joins("JOIN film_categories ON films.id = film_categories.film_id").
+		//     Joins("JOIN categories ON film_categories.category_id = categories.id").
+		//     Where("categories.name LIKE ?", "%"+query+"%").
+		//     Select("films.id")
+
+		// // Subquery for languages
+		// languageQuery := db.DB.Model(&Film{}).
+		//     Joins("JOIN languages ON films.language_id = languages.id").
+		//     Where("languages.name LIKE ?", "%"+query+"%").
+		//     Select("films.id")
+
+		// db = db.Where("films.name LIKE ?", "%"+query+"%").
+		//     Or("films.id IN (?)", actorQuery).
+		//     Or("films.id IN (?)", categoryQuery).
+		//     Or("films.id IN (?)", languageQuery)
+
+		// db.DB = db.DB.
+		// 	Joins("LEFT JOIN languages ON films.language_id = languages.id").
+		// 	Joins("LEFT JOIN film_actors AS fa ON films.id = fa.film_id").
+		// 	Joins("LEFT JOIN actors ON fa.actor_id = actors.id").
+		// 	Joins("LEFT JOIN film_categories AS fc ON films.id = fc.film_id").
+		// 	Joins("LEFT JOIN categories ON fc.category_id = categories.id").
+		// 	Where("films.title LIKE ?", "%"+query+"%").
+		// 	Or("actors.first_name LIKE ?", "%"+query+"%").
+		// 	Or("categories.name LIKE ?", "%"+query+"%").
+		// 	Or("languages.name LIKE ?", "%"+query+"%")
 		db.DB = db.DB.Where("title LIKE ?", "%"+query+"%")
 	}
 
