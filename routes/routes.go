@@ -8,7 +8,7 @@ import (
 func Setup(app *fiber.App) {
 
 	app.Post("/categories", controllers.CreateCategory)
-	app.Post("/films", controllers.StoreFilm)
+	app.Post("/films", controllers.CreateFilm)
 	app.Post("/actors", controllers.SaveActor)
 	app.Post("/actors-in-film", controllers.SaveActorInFilm)
 	app.Get("/films/:id", controllers.FilmDetails)

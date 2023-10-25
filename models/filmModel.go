@@ -5,10 +5,8 @@ import (
 )
 
 type Film struct {
-	Id              int `json:"id"`
-	gorm.Model          // This includes ID, CreatedAt, and UpdatedAt fields
-	LanguageId      uint
-	Language        Language `gorm:"foreignkey:Id"`
+	gorm.Model               // This includes ID, CreatedAt, and UpdatedAt fields
+	Language        Language `gorm:"foreignkey:ID"`
 	Title           string   `json:"title"`
 	Description     string   `json:"description"`
 	ReleaseYear     int      `json:"release_year"`
