@@ -9,33 +9,39 @@ import (
 )
 
 type FilmResponse struct {
-	ID              uint               `json:"id"`
-	Title           string             `json:"title"`
-	Description     string             `json:"description"`
-	ReleaseYear     int                `json:"release_year"`
-	Rental_Duration int                `json:"rental_duration"`
-	RentalRate      float32            `json:"rental_rate"`
-	Length          int                `json:"length"`
-	ReplacementCost float32            `json:"replacement_cost"`
-	Rating          int                `json:"rating"`
-	SpecialFeature  string             `json:"special_feature"`
-	FullText        string             `json:"full_text"`
-	Language        LanguageResponse   `json:"language"`
-	Actors          []ActorResponse    `json:"actors"`
-	Categories      []CateogoryReponse `json:"categories"`
+	ID              uint              `json:"id"`
+	Title           string            `json:"title"`
+	Description     string            `json:"description"`
+	ReleaseYear     int               `json:"release_year"`
+	Rental_Duration int               `json:"rental_duration"`
+	RentalRate      float32           `json:"rental_rate"`
+	Length          int               `json:"length"`
+	ReplacementCost float32           `json:"replacement_cost"`
+	Rating          int               `json:"rating"`
+	SpecialFeature  string            `json:"special_feature"`
+	FullText        string            `json:"full_text"`
+	Language        LanguageResponse  `json:"language"`
+	Actors          []ActorResponse   `json:"actors"`
+	Categories      []CategoryReponse `json:"categories"`
 }
 
 type LanguageResponse struct {
 	Name string `json:"name"`
 }
 
-type CateogoryReponse struct {
+type CategoryReponse struct {
 	Name string `json:"name"`
 }
 
 type ActorResponse struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+}
+
+type MetaInfo struct {
+	PerPage    int
+	TotalPages int
+	QueryInput string
 }
 
 func StoreFilm(c *fiber.Ctx) error {
@@ -76,7 +82,7 @@ func StoreFilm(c *fiber.Ctx) error {
 
 	film := models.Film{
 		Title:           body.Title,
-		LanguageId:      body.LanguageId,
+		LanguageId:      uint(body.LanguageId),
 		Description:     body.Description,
 		ReleaseYear:     body.ReleaseYear,
 		Rental_Duration: body.RentalDuration,
@@ -154,7 +160,7 @@ func FilmDetails(c *fiber.Ctx) error {
 	}
 
 	for _, category := range film.Categories {
-		cateogoryReponse := CateogoryReponse{
+		cateogoryReponse := CategoryReponse{
 			Name: category.Name,
 		}
 		filmResponse.Categories = append(filmResponse.Categories, cateogoryReponse)
@@ -165,5 +171,86 @@ func FilmDetails(c *fiber.Ctx) error {
 		"status":  200,
 		"message": "success",
 		"body":    filmResponse,
+	})
+}
+
+func FilmsList(c *fiber.Ctx) error {
+	var films []models.Film
+
+	// Apply pagination and limits
+	limit, page := 10, 1 // You can customize these values
+	offset := (page - 1) * limit
+	db.DB.Limit(limit).Offset(offset)
+
+	// Check if a query parameter for matching films is provided
+	query := c.Query("q")
+	if query != "" {
+		db.DB = db.DB.Where("title LIKE ?", "%"+query+"%")
+	}
+
+	if err := db.DB.Preload("Actors").Preload("Categories").Preload("Language").Find(&films).Error; err != nil {
+		return c.Status(500).SendString("Error while fetching films")
+	}
+
+	var filmResponses []FilmResponse
+	for _, film := range films {
+		var actorsResponse []ActorResponse
+		for _, actor := range film.Actors {
+			actorsResponse = append(actorsResponse, ActorResponse{
+				FirstName: actor.FirstName,
+				LastName:  actor.LastName,
+			})
+		}
+
+		var categoriesResponse []CategoryReponse
+		for _, category := range film.Categories {
+			categoriesResponse = append(categoriesResponse, CategoryReponse{
+				Name: category.Name,
+			})
+		}
+
+		log.Printf("film id %v", film.Language.Name)
+
+		filmResponses = append(filmResponses, FilmResponse{
+			ID:              uint(film.Id),
+			Title:           film.Title,
+			Description:     film.Description,
+			ReleaseYear:     film.ReleaseYear,
+			Rental_Duration: film.Rental_Duration,
+			RentalRate:      film.RentalRate,
+			Length:          film.Length,
+			ReplacementCost: film.ReplacementCost,
+			Rating:          film.Rating,
+			SpecialFeature:  film.SpecialFeature,
+			FullText:        film.FullText,
+			Actors:          actorsResponse,
+			Categories:      categoriesResponse,
+			Language: LanguageResponse{
+				Name: film.Language.Name,
+			},
+		})
+	}
+
+	// Calculate total pages based on total records and per page limit
+	totalRecords := len(films)
+	totalPageCount := (totalRecords + limit - 1) / limit
+
+	// Create metadata
+	meta := MetaInfo{
+		PerPage:    limit,
+		TotalPages: totalPageCount,
+		QueryInput: query,
+	}
+
+	response := map[string]interface{}{
+		"films": filmResponses,
+		"meta":  meta,
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"status":  200,
+		"message": "success",
+		"body":    response,
 	})
 }

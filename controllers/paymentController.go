@@ -65,3 +65,37 @@ func MakePayment(c *fiber.Ctx) error {
 		"data":    data,
 	})
 }
+
+func ReturnFilm(c *fiber.Ctx) error {
+	body := struct {
+		StaffId     int `json:"staff_id"`
+		CustomerId  int `json:"customer_id"`
+		InventoryId int `json:"inventory_id"`
+	}{}
+
+	err := c.BodyParser(&body)
+
+	if err != nil {
+		log.Fatalf("File can not be returned %v", err)
+	}
+
+	if body.CustomerId <= 0 || body.StaffId <= 0 || body.InventoryId <= 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": "Missing required fields",
+		})
+	}
+
+	var rental models.Rental
+	db.DB.Where("customer_id = ?", body.CustomerId).Where("staff_id = ?", body.StaffId).Where("inventory_id = ?", body.InventoryId).First(&rental)
+
+	rental.RenturnDate = time.Now().UTC().String()
+	db.DB.Save(&rental)
+
+	return c.Status(200).JSON(fiber.Map{
+		"success":  true,
+		"messsage": "success",
+		"data":     rental,
+	})
+
+}

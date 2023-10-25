@@ -1,10 +1,10 @@
 package models
 
-import "time"
+import (
+	"gorm.io/gorm"
+)
 
 type Category struct {
-	Id        int       `json:"id" gorm:"type:INT(10) UNSIGNED NOT NULL AUTO_INCREMENT;primaryKey"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	gorm.Model
+	Name string `json:"name"`
 }

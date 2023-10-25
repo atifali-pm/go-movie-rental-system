@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"log"
-	"time"
 
 	db "github.com/atifali-pm/go-movie-rental-system/config"
 	"github.com/atifali-pm/go-movie-rental-system/models"
@@ -25,9 +24,7 @@ func CreateCategory(c *fiber.Ctx) error {
 	}
 
 	category := models.Category{
-		Name:      data["name"],
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		Name: data["name"],
 	}
 
 	db.DB.Create(&category)
