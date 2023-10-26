@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"log"
-	"time"
 
 	db "github.com/atifali-pm/go-movie-rental-system/config"
 	"github.com/atifali-pm/go-movie-rental-system/models"
@@ -41,8 +40,6 @@ func SaveActor(c *fiber.Ctx) error {
 	actor := models.Actor{
 		FirstName: body.FirstName,
 		LastName:  body.LastName,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
 	}
 
 	db.DB.Create(&actor)

@@ -20,4 +20,6 @@ func Setup(app *fiber.App) {
 
 	// app.Get("/films", controllers.FilmLists)
 	app.Get("/films", controllers.FilmsList)
+	app.Put("/films/:id", controllers.UpdateFilm)
+	app.Delete("/films/:id", controllers.DeleteFilm)
 }

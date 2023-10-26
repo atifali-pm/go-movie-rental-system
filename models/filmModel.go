@@ -6,7 +6,7 @@ import (
 
 type Film struct {
 	gorm.Model               // This includes ID, CreatedAt, and UpdatedAt fields
-	Language        Language `gorm:"foreignkey:ID"`
+	LanguageId      int      `json:"language_id"`
 	Title           string   `json:"title"`
 	Description     string   `json:"description"`
 	ReleaseYear     int      `json:"release_year"`
@@ -17,7 +17,8 @@ type Film struct {
 	Rating          int      `json:"rating"`
 	SpecialFeature  string   `json:"special_feature"`
 	FullText        string   `json:"full_text"`
+	Language        Language `json:"language"`
 
-	Actors     []Actor    `gorm:"many2many:film_actors;"`
+	Actors     []Actor    `gorm:"many2many:film_actors"`
 	Categories []Category `gorm:"many2many:film_categories"`
 }

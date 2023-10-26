@@ -39,80 +39,10 @@ type ActorResponse struct {
 }
 
 type MetaInfo struct {
-	PerPage    int
-	TotalPages int
-	QueryInput string
-}
-
-func StoreFilm(c *fiber.Ctx) error {
-	body := struct {
-		Title           string          `json:"title"`
-		Language        models.Language `json:"language_id"`
-		Description     string          `json:"description"`
-		ReleaseYear     int             `json:"release_year"`
-		RentalDuration  int             `json:"rental_duration"`
-		RentalRate      float32         `json:"rental_rate"`
-		Length          int             `json:"length"`
-		ReplacementCost float32         `json:"replacement_cost"`
-		Rating          int             `json:"rating"`
-		SpecialFeature  string          `json:"special_feature"`
-		FullText        string          `json:"full_text"`
-		CategoryId      int             `json:"category_id"`
-	}{}
-
-	err := c.BodyParser(&body)
-
-	if err != nil {
-		log.Fatalf("Film storing error %v", err)
-	}
-
-	if body.CategoryId == 0 {
-		return c.Status(400).JSON(fiber.Map{
-			"success": true,
-			"message": "Required fields can not be empty",
-		})
-	}
-
-	if body.Title == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": true,
-			"message": "Required fields can not be empty",
-		})
-	}
-
-	film := models.Film{
-		Title:           body.Title,
-		Language:        body.Language,
-		Description:     body.Description,
-		ReleaseYear:     body.ReleaseYear,
-		Rental_Duration: body.RentalDuration,
-		RentalRate:      body.RentalRate,
-		Length:          body.Length,
-		ReplacementCost: body.ReplacementCost,
-		Rating:          body.Rating,
-		SpecialFeature:  body.SpecialFeature,
-		FullText:        body.FullText,
-	}
-
-	db.DB.Create(&film)
-
-	filmCategory := models.FilmCategory{
-		FilmId: int(film.ID),
-	}
-
-	db.DB.Create(&filmCategory)
-
-	inventory := models.Inventory{
-		FilmId: int(film.ID),
-	}
-
-	db.DB.Create(&inventory)
-
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"message": "success",
-		"data":    film,
-	})
+	PerPage      int
+	TotalPages   int
+	QueryInput   string
+	TotalRecords int
 }
 
 func CreateFilm(c *fiber.Ctx) error {
@@ -122,7 +52,6 @@ func CreateFilm(c *fiber.Ctx) error {
 	if err := c.BodyParser(&film); err != nil {
 		return c.Status(400).SendString("Invalid request body")
 	}
-	log.Printf("Film payload%v", film.Language.Name)
 
 	// Check if a film with the same title already exists
 	var existingFilm models.Film
@@ -130,61 +59,85 @@ func CreateFilm(c *fiber.Ctx) error {
 		return c.Status(409).SendString("Film with the same title already exists")
 	}
 
-	// // Create and save the language
-	// var language models.Language
-	// if err := db.DB.Where("name = ?", film.Language.Name).First(&language).Error; err != nil {
-	// 	// Language doesn't exist, save it
-	// 	if err := db.DB.Create(&language).Error; err != nil {
-	// 		return c.Status(500).SendString("Error while saving the language")
-	// 	}
+	// Create and save the language
+	var language models.Language
+	if err := db.DB.Where("name = ?", film.Language.Name).First(&language).Error; err != nil {
+		// Language doesn't exist, save it
+		if err := db.DB.Save(&language).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the language")
+		}
+	} else {
+		// Language already exists, use the existing one
+		film.Language = language
+	}
 
-	// } else {
-	// 	// Language already exists, use the existing one
-	// 	film.Language = language
-	// }
+	var newFilmData models.Film
+	newFilmData.Title = film.Title
+	newFilmData.Description = film.Description
+	newFilmData.ReleaseYear = film.ReleaseYear
+	newFilmData.RentalRate = film.RentalRate
+	newFilmData.Rating = film.Rating
+	newFilmData.Length = film.Length
+	newFilmData.ReplacementCost = film.ReplacementCost
+	newFilmData.Rating = film.Rating
+	// newFilmData.Language = film.Language
+	// newFilmData.Actors = film.Actors
+	// newFilmData.Categories = film.Categories
+	newFilmData.SpecialFeature = film.SpecialFeature
+	newFilmData.FullText = film.FullText
+	newFilmData.Language = film.Language
+	newFilmData.LanguageId = film.LanguageId
+
+	// Create and save the film
+	if err := db.DB.Create(&newFilmData).Error; err != nil {
+		return c.Status(500).SendString("Error while creating the film")
+	}
 
 	// Iterate through the actors and save them if they don't exist
 	for i := range film.Actors {
 		actor := &film.Actors[i]
 		var existingActor models.Actor
+		var filmActor models.FilmActor
 		if err := db.DB.Where("first_name = ? AND last_name = ?", actor.FirstName, actor.LastName).First(&existingActor).Error; err != nil {
 			// Actor doesn't exist, save it
+			log.Printf("Creating new actors: %s", actor.FirstName)
 			if err := db.DB.Create(&actor).Error; err != nil {
 				return c.Status(500).SendString("Error while saving actors")
 			}
+			filmActor.ActorId = int(actor.ID)
 		} else {
-			// Actor already exists, use the existing one
-			actor.Id = existingActor.Id
+			filmActor.ActorId = int(existingActor.ID)
 		}
+		filmActor.FilmId = int(newFilmData.ID)
+		db.DB.Save(&filmActor)
 	}
 
 	// Iterate through the categories and save them if they don't exist
 	for i := range film.Categories {
 		category := &film.Categories[i]
 		var existingCategory models.Category
+		var filmCategory models.FilmCategory
 		if err := db.DB.Where("name = ?", category.Name).First(&existingCategory).Error; err != nil {
 			// Category doesn't exist, save it
+			log.Printf("Creating new categories: %s", category.Name)
 			if err := db.DB.Create(&category).Error; err != nil {
 				return c.Status(500).SendString("Error while saving categories")
 			}
+			filmCategory.CategoryId = int(category.ID)
 		} else {
-			// Category already exists, use the existing one
-			category.ID = existingCategory.ID
+			filmCategory.CategoryId = int(existingCategory.ID)
 		}
-	}
-
-	// Create and save the film
-	if err := db.DB.Create(&film).Error; err != nil {
-		return c.Status(500).SendString("Error while creating the film")
-	}
-
-	// Save the film with updated actor and category associations
-	if err := db.DB.Save(&film).Error; err != nil {
-		return c.Status(500).SendString("Error while saving the film with actors and categories")
+		filmCategory.FilmId = int(newFilmData.ID)
+		db.DB.Save(&filmCategory)
 	}
 
 	// Return a success response
-	return c.Status(201).JSON(film)
+	return c.Status(201).JSON(fiber.Map{
+		"success": true,
+		"status":  201,
+		"message": "success",
+		"body":    film,
+	})
 }
 
 func FilmDetails(c *fiber.Ctx) error {
@@ -205,7 +158,7 @@ func FilmDetails(c *fiber.Ctx) error {
 	}
 
 	var language models.Language
-	db.DB.Where("id=?", film.Language.ID).Find(&language)
+	db.DB.Where("id=?", film.LanguageId).Find(&language)
 
 	var filmResponse FilmResponse
 	filmResponse.ID = uint(film.ID)
@@ -295,7 +248,7 @@ func FilmsList(c *fiber.Ctx) error {
 		db.DB = db.DB.Where("title LIKE ?", "%"+query+"%")
 	}
 
-	if err := db.DB.Preload("Actors").Preload("Categories").Preload("Language").Find(&films).Error; err != nil {
+	if err := db.DB.Preload("Actors").Preload("Categories").Order("films.created_at DESC").Find(&films).Error; err != nil {
 		return c.Status(500).SendString("Error while fetching films")
 	}
 
@@ -316,6 +269,9 @@ func FilmsList(c *fiber.Ctx) error {
 			})
 		}
 
+		var language models.Language
+		db.DB.Where("id=?", film.LanguageId).Find(&language)
+
 		filmResponses = append(filmResponses, FilmResponse{
 			ID:              uint(film.ID),
 			Title:           film.Title,
@@ -331,7 +287,7 @@ func FilmsList(c *fiber.Ctx) error {
 			Actors:          actorsResponse,
 			Categories:      categoriesResponse,
 			Language: LanguageResponse{
-				Name: film.Language.Name,
+				Name: language.Name,
 			},
 		})
 	}
@@ -342,9 +298,10 @@ func FilmsList(c *fiber.Ctx) error {
 
 	// Create metadata
 	meta := MetaInfo{
-		PerPage:    limit,
-		TotalPages: totalPageCount,
-		QueryInput: query,
+		PerPage:      limit,
+		TotalPages:   totalPageCount,
+		QueryInput:   query,
+		TotalRecords: totalRecords,
 	}
 
 	response := map[string]interface{}{
@@ -358,4 +315,102 @@ func FilmsList(c *fiber.Ctx) error {
 		"message": "success",
 		"body":    response,
 	})
+}
+
+func DeleteFilm(c *fiber.Ctx) error {
+	filmId := c.Params("id")
+
+	var film models.Film
+
+	db.DB.First(&film, filmId)
+	if film.ID <= 0 {
+		return c.Status(404).JSON(fiber.Map{
+			"success": false,
+			"messgae": "film not found!",
+		})
+	}
+
+	var filmCategory models.FilmCategory
+	db.DB.Where("film_id=?", filmId).Delete(&filmCategory)
+
+	var filmActor models.FilmActor
+	db.DB.Where("film_id=?", filmId).Delete(&filmActor)
+
+	db.DB.Delete(&film)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "film is removed!",
+	})
+}
+
+func UpdateFilm(c *fiber.Ctx) error {
+	filmId := c.Params("id")
+
+	var updateFilmData models.Film
+	if err := db.DB.Where("id=?", filmId).Find(&updateFilmData).Error; err != nil {
+		return c.Status(404).SendString("Film not found!")
+	}
+
+	var film models.Film
+	if err := c.BodyParser(&film); err != nil {
+		return c.Status(400).SendString("Invalid request body")
+	}
+
+	// Create and save the language
+	var language models.Language
+	if err := db.DB.Where("name = ?", film.Language.Name).First(&language).Error; err != nil {
+		// Language doesn't exist, save it
+		if err := db.DB.Create(&language).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the language")
+		}
+	} else {
+		// Language already exists, use the existing one
+		film.Language = language
+	}
+
+	// Iterate through the actors and save them if they don't exist
+	for i := range film.Actors {
+		actor := &film.Actors[i]
+		var existingActor models.Actor
+		if err := db.DB.Where("first_name = ? AND last_name = ?", actor.FirstName, actor.LastName).First(&existingActor).Error; err != nil {
+			// Actor doesn't exist, save it
+			if err := db.DB.Create(&actor).Error; err != nil {
+				return c.Status(500).SendString("Error while saving actors")
+			}
+		}
+	}
+
+	// Iterate through the categories and save them if they don't exist
+	for i := range film.Categories {
+		category := &film.Categories[i]
+		var existingCategory models.Category
+		if err := db.DB.Where("name = ?", category.Name).First(&existingCategory).Error; err != nil {
+			// Category doesn't exist, save it
+			if err := db.DB.Create(&category).Error; err != nil {
+				return c.Status(500).SendString("Error while saving categories")
+			}
+		}
+	}
+
+	updateFilmData.Title = film.Title
+	updateFilmData.Description = film.Description
+	updateFilmData.ReleaseYear = film.ReleaseYear
+	updateFilmData.RentalRate = film.RentalRate
+	updateFilmData.Rating = film.Rating
+	updateFilmData.Length = film.Length
+	updateFilmData.ReplacementCost = film.ReplacementCost
+	updateFilmData.Rating = film.Rating
+	// updateFilmData.Language = film.Language
+	// updateFilmData.Actors = film.Actors
+	updateFilmData.Categories = film.Categories
+	updateFilmData.SpecialFeature = film.SpecialFeature
+	updateFilmData.FullText = film.FullText
+
+	// Save the film with updated actor and category associations
+	if err := db.DB.Save(&updateFilmData).Error; err != nil {
+		return c.Status(500).SendString("Error while saving the film with actors and categories")
+	}
+
+	return c.Status(201).JSON(updateFilmData)
 }
