@@ -26,6 +26,76 @@ type Address struct {
 	Phone      string `json:"phone"`
 }
 
+type CustomerResponse struct {
+	ID        int             `json:"id"`
+	FirstName string          `json:"first_name"`
+	LastName  string          `json:"last_name"`
+	Email     string          `json:"email"`
+	Active    bool            `json:"active"`
+	Address   AddressResponse `json:"address"`
+}
+
+type AddressResponse struct {
+	Address    string `json:"address"`
+	Address2   string `json:"address2"`
+	District   string `json:"district"`
+	PostalCode string `json:"postal_code"`
+	Phone      string `json:"phone"`
+	City       string `json:"city"`
+	Country    string `json:"country"`
+}
+
+func CustomerDetail(c *fiber.Ctx) error {
+	customerId := c.Params("id")
+
+	if customerId == "" {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"status":  fiber.StatusNotFound,
+			"message": "Customer not found!",
+			"error":   map[string]interface{}{},
+		})
+	}
+
+	var customer models.Customer
+	if err := db.DB.First(&customer, customerId).Error; err != nil {
+		return c.Status(404).SendString("customer not found")
+	}
+
+	var address models.Address
+	db.DB.Where("id=?", customer.AddressId).Find(&address)
+
+	var city models.City
+	db.DB.Where("id=?", address.CityId).Find(&city)
+
+	var country models.Country
+	db.DB.Where("id=?", city.CountryId).Find(&country)
+
+	var customerRes CustomerResponse
+	customerRes.ID = int(customer.ID)
+	customerRes.FirstName = customer.FirstName
+	customerRes.LastName = customer.LastName
+	customerRes.Email = customer.Email
+	customerRes.Active = customer.Active
+	customerRes.Address = AddressResponse{
+		Address:    address.Address,
+		Address2:   address.Address2,
+		District:   address.District,
+		PostalCode: address.PostalCode,
+		Phone:      address.Phone,
+		City:       city.City,
+		Country:    country.Country,
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"status":  200,
+		"message": "success",
+		"body":    customerRes,
+	})
+
+}
+
 func CreateCustomer(c *fiber.Ctx) error {
 	var data CustomerData
 
@@ -50,14 +120,14 @@ func CreateCustomer(c *fiber.Ctx) error {
 	}
 
 	var country models.Country
-	if err := db.DB.Where("country = ?", data.Country).Find(&country).Error; err != nil {
+	if err := db.DB.Where("country = ?", data.Country).Find(&country).Error; err == nil {
 		if err := db.DB.Save(&country).Error; err != nil {
-			return c.Status(500).SendString("Error while saving the language")
+			return c.Status(500).SendString("Error while saving the country")
 		}
 	}
 
 	var city models.City
-	if err := db.DB.Where("city = ?", data.City).Find(&city).Error; err != nil {
+	if err := db.DB.Where("city = ?", data.City).Find(&city).Error; err == nil {
 		city.City = data.City
 		city.CountryId = country.ID
 		if err := db.DB.Save(&city).Error; err != nil {
@@ -88,6 +158,109 @@ func CreateCustomer(c *fiber.Ctx) error {
 		"success": true,
 		"message": "success",
 		"data":    customer,
+	})
+
+}
+
+func CustomersList(c *fiber.Ctx) error {
+	var customers []models.Customer
+
+	// Apply pagination and limits
+	limit, page := 10, 1 // You can customize these values
+	offset := (page - 1) * limit
+
+	// Check if a query parameter for matching films is provided
+	query := c.Query("q")
+	if query != "" {
+
+		if err := db.DB.Where("first_name LIKE ?", "%"+query+"%").
+			Or("last_name LIKE ?", "%"+query+"%").Order("customers.created_at DESC").Limit(limit).Offset(offset).Find(&customers).Error; err != nil {
+			return c.Status(500).SendString("Error while fetching customers")
+		}
+
+	} else {
+		if err := db.DB.Order("customers.created_at DESC").Limit(limit).Offset(offset).Find(&customers).Error; err != nil {
+			return c.Status(500).SendString("Error while fetching customers")
+		}
+	}
+
+	var CustomerResponses []CustomerResponse
+
+	for _, customer := range customers {
+
+		var address models.Address
+		db.DB.Where("id=?", customer.AddressId).Find(&address)
+
+		var city models.City
+		db.DB.Where("id=?", address.CityId).Find(&city)
+
+		var country models.Country
+		db.DB.Where("id=?", city.CountryId).Find(&country)
+
+		CustomerResponses = append(CustomerResponses, CustomerResponse{
+			ID:        int(customer.ID),
+			FirstName: customer.FirstName,
+			LastName:  customer.LastName,
+			Email:     customer.Email,
+			Active:    customer.Active,
+			Address: AddressResponse{
+				Address:    address.Address,
+				Address2:   address.Address2,
+				District:   address.District,
+				PostalCode: address.PostalCode,
+				Phone:      address.Phone,
+				City:       city.City,
+				Country:    country.Country,
+			},
+		})
+	}
+
+	totalRecords := len(customers)
+	totalPageCount := (totalRecords + limit - 1) / limit
+
+	// Create metadata
+	meta := MetaInfo{
+		PerPage:      limit,
+		TotalPages:   totalPageCount,
+		QueryInput:   query,
+		TotalRecords: totalRecords,
+	}
+
+	response := map[string]interface{}{
+		"customers": CustomerResponses,
+		"meta":      meta,
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"status":  200,
+		"message": "success",
+		"body":    response,
+	})
+
+}
+
+func DeleteCustomer(c *fiber.Ctx) error {
+	customerId := c.Params("id")
+
+	var customer models.Customer
+
+	db.DB.First(&customer, customerId)
+	if customer.ID <= 0 {
+		return c.Status(404).JSON(fiber.Map{
+			"success": false,
+			"messgae": "Customer not found!",
+		})
+	}
+
+	var address models.Address
+	db.DB.Where("id=?", customer.AddressId).Delete(&address)
+
+	db.DB.Delete(&customer)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "customer is removed!",
 	})
 
 }

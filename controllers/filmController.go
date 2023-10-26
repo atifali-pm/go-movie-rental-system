@@ -401,9 +401,9 @@ func UpdateFilm(c *fiber.Ctx) error {
 	updateFilmData.Length = film.Length
 	updateFilmData.ReplacementCost = film.ReplacementCost
 	updateFilmData.Rating = film.Rating
-	// updateFilmData.Language = film.Language
+	updateFilmData.Language = film.Language
 	// updateFilmData.Actors = film.Actors
-	updateFilmData.Categories = film.Categories
+	// updateFilmData.Categories = film.Categories
 	updateFilmData.SpecialFeature = film.SpecialFeature
 	updateFilmData.FullText = film.FullText
 
@@ -411,6 +411,7 @@ func UpdateFilm(c *fiber.Ctx) error {
 	if err := db.DB.Save(&updateFilmData).Error; err != nil {
 		return c.Status(500).SendString("Error while saving the film with actors and categories")
 	}
-
+	updateFilmData.Actors = film.Actors
+	updateFilmData.Categories = film.Categories
 	return c.Status(201).JSON(updateFilmData)
 }
