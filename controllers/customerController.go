@@ -41,16 +41,29 @@ func CreateCustomer(c *fiber.Ctx) error {
 		})
 	}
 
-	country := models.Country{
-		Country: data.Country,
+	var existingEmail models.Customer
+	if err := db.DB.Where("email = ?", data.Email).First(&existingEmail).Error; err == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Email already exists!",
+		})
 	}
-	db.DB.Create(&country)
 
-	city := models.City{
-		CountryId: country.ID,
-		City:      data.City,
+	var country models.Country
+	if err := db.DB.Where("country = ?", data.Country).Find(&country).Error; err != nil {
+		if err := db.DB.Save(&country).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the language")
+		}
 	}
-	db.DB.Create(&city)
+
+	var city models.City
+	if err := db.DB.Where("city = ?", data.City).Find(&city).Error; err != nil {
+		city.City = data.City
+		city.CountryId = country.ID
+		if err := db.DB.Save(&city).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the language")
+		}
+	}
 
 	address := models.Address{
 		CityId:     int(city.ID),
