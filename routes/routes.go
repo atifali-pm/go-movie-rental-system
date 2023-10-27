@@ -17,6 +17,7 @@ func Setup(app *fiber.App) {
 	app.Get("/customers", controllers.CustomersList)
 	app.Get("/customers/:id", controllers.CustomerDetail)
 	app.Delete("/customers/:id", controllers.DeleteCustomer)
+	app.Put("/customers/:id", controllers.UpdateCustomer)
 
 	app.Post("/payments", controllers.MakePayment)
 	app.Post("/return-film", controllers.ReturnFilm)
@@ -25,4 +26,10 @@ func Setup(app *fiber.App) {
 	app.Get("/films", controllers.FilmsList)
 	app.Put("/films/:id", controllers.UpdateFilm)
 	app.Delete("/films/:id", controllers.DeleteFilm)
+
+	app.Post("/staff", controllers.CreateStaff)
+	app.Get("/staff/:id", controllers.StaffDetail)
+	app.Put("/staff/:id", controllers.UpdateStaff)
+	app.Delete("/staff/:id", controllers.DeleteStaff)
+
 }

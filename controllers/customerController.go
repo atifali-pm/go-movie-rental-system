@@ -45,6 +45,67 @@ type AddressResponse struct {
 	Country    string `json:"country"`
 }
 
+func UpdateCustomer(c *fiber.Ctx) error {
+
+	customerId := c.Params("id")
+	var customer models.Customer
+
+	db.DB.Find(&customer, "id=?", customerId)
+
+	if customer.ID <= 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": true,
+			"message": "Customer not found",
+		})
+	}
+
+	var data CustomerData
+	c.BodyParser(&data)
+
+	var country models.Country
+	if err := db.DB.Where("country = ?", data.Country).Find(&country).Error; err == nil {
+		country.Country = data.Country
+		if err := db.DB.Save(&country).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the country")
+		}
+	}
+
+	log.Printf("Country name from DB: %s\n Country Name from Payload: %s", country.Country, data.Country)
+
+	var city models.City
+	if err := db.DB.Where("city = ?", data.City).Find(&city).Error; err == nil {
+		city.City = data.City
+		city.CountryId = country.ID
+		if err := db.DB.Save(&city).Error; err != nil {
+			return c.Status(500).SendString("Error while saving the city")
+		}
+	}
+
+	var address models.Address
+	db.DB.Where("id = ?", customer.AddressId).Find(&address)
+	address.CityId = int(city.ID)
+	address.Address = data.Address.Address
+	address.Address2 = data.Address.Address2
+	address.District = data.Address.District
+	address.PostalCode = data.Address.PostalCode
+	address.Phone = data.Address.Phone
+	if err := db.DB.Save(&address).Error; err != nil {
+		return c.Status(500).SendString("Error while saving the address")
+	}
+
+	customer.FirstName = data.FirstName
+	customer.LastName = data.LastName
+	customer.Active = data.Active
+	customer.Email = data.Email
+	db.DB.Save(&customer)
+
+	return c.Status(201).JSON(fiber.Map{
+		"success":  true,
+		"messsage": "success",
+		"data":     data,
+	})
+}
+
 func CustomerDetail(c *fiber.Ctx) error {
 	customerId := c.Params("id")
 
@@ -121,6 +182,7 @@ func CreateCustomer(c *fiber.Ctx) error {
 
 	var country models.Country
 	if err := db.DB.Where("country = ?", data.Country).Find(&country).Error; err == nil {
+		country.Country = data.Country
 		if err := db.DB.Save(&country).Error; err != nil {
 			return c.Status(500).SendString("Error while saving the country")
 		}
@@ -131,7 +193,7 @@ func CreateCustomer(c *fiber.Ctx) error {
 		city.City = data.City
 		city.CountryId = country.ID
 		if err := db.DB.Save(&city).Error; err != nil {
-			return c.Status(500).SendString("Error while saving the language")
+			return c.Status(500).SendString("Error while saving the city")
 		}
 	}
 
@@ -157,7 +219,7 @@ func CreateCustomer(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"message": "success",
-		"data":    customer,
+		"data":    data,
 	})
 
 }
