@@ -125,6 +125,15 @@ func CreateFilm(c *fiber.Ctx) error {
 		db.DB.Save(&filmCategory)
 	}
 
+	// Create and save the inventory
+	var inventory models.Inventory
+	// Language doesn't exist, save it
+	inventory.FilmId = int(newFilmData.ID)
+	inventory.Copies = 5
+	if err := db.DB.Save(&inventory).Error; err != nil {
+		return c.Status(500).SendString("Error while saving the language")
+	}
+
 	// Return a success response
 	return c.Status(201).JSON(fiber.Map{
 		"success": true,

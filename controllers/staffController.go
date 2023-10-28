@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"log"
-	"time"
 
 	db "github.com/atifali-pm/go-movie-rental-system/config"
 	"github.com/atifali-pm/go-movie-rental-system/models"
@@ -23,7 +22,7 @@ type StaffData struct {
 
 type PaymentResponse struct {
 	Amount      float32                 `json:"amount"`
-	PaymentDate time.Time               `json:"payment_date"`
+	PaymentDate string                  `json:"payment_date"`
 	Customer    PaymentCustomerResponse `json:"customer"`
 }
 
@@ -31,6 +30,66 @@ type PaymentCustomerResponse struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
+}
+
+func StaffList(c *fiber.Ctx) error {
+	var staffList []models.Staff
+
+	// Apply pagination and limits
+	limit, page := 10, 1 // You can customize these values
+	offset := (page - 1) * limit
+
+	// Check if a query parameter for matching films is provided
+	query := c.Query("q")
+	if query != "" {
+
+		if err := db.DB.Where("first_name LIKE ?", "%"+query+"%").
+			Or("last_name LIKE ?", "%"+query+"%").Order("staffs.created_at DESC").Limit(limit).Offset(offset).Find(&staffList).Error; err != nil {
+			return c.Status(500).SendString("Error while fetching records")
+		}
+
+	} else {
+		if err := db.DB.Order("staffs.created_at DESC").Limit(limit).Offset(offset).Find(&staffList).Error; err != nil {
+			return c.Status(500).SendString("Error while fetching records")
+		}
+	}
+
+	var StaffResponses []StaffData
+
+	for _, staff := range staffList {
+
+		StaffResponses = append(StaffResponses, StaffData{
+			FirstName:  staff.FirstName,
+			LastName:   staff.LastName,
+			Email:      staff.Email,
+			Active:     staff.Active,
+			AddressId:  staff.AddressId,
+			StoreId:    staff.StoreId,
+			Username:   staff.Username,
+			Password:   staff.Password,
+			PictureURL: staff.PictureURL,
+		})
+	}
+
+	totalRecords := len(staffList)
+	totalPageCount := (totalRecords + limit - 1) / limit
+
+	// Create metadata
+	meta := MetaInfo{
+		PerPage:      limit,
+		TotalPages:   totalPageCount,
+		QueryInput:   query,
+		TotalRecords: totalRecords,
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"status":  200,
+		"message": "success",
+		"data":    StaffResponses,
+		"meta":    meta,
+	})
+
 }
 
 func CreateStaff(c *fiber.Ctx) error {

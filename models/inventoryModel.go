@@ -7,4 +7,5 @@ import (
 type Inventory struct {
 	gorm.Model
 	FilmId int `json:"film_id"`
+	Copies int `json:"copies"`
 }
